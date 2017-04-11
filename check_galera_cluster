@@ -1,0 +1,98 @@
+#!/bin/bash
+# Monitoring check script for galera cluster health
+#
+# @author  Raffael Sahli <sahli@gyselroth.com>
+# @license MIT
+#
+usage()
+{
+cat << EOF
+Monitoring check script for galera cluster health
+usage: $0 options
+
+OPTIONS:
+-h Prints out this message
+-H Hostname [Default: localhost] MySQL (Fork) Server
+-P port [Default: 3306] Port
+-u username [Default: root] Username to monitor (Needs privilege to execute SHOW STATUS)
+-p password [Default: <empty>] Password
+-w warning [Default: 1] Script will throw a warning if the number of failed or unreachable nodes is at least the number specified
+-c critical [Default: 2] Script will throw a critical if the number of failed or unreachable nodes is at least the number specified
+EOF
+}
+
+HOST=127.0.0.1
+PORT=3306
+USERNAME=root
+PASSWORD=
+CRIT=1
+WARN=2
+
+while getopts "hH:P:u:p:w:c:" OPTION
+do
+case $OPTION in
+h)
+usage
+exit 1
+;;
+H)
+HOST=$OPTARG
+;;
+P)
+PORT=$OPTARG
+;;
+u)
+USERNAME=$OPTARG
+;;
+p)
+PASSWORD=$OPTARG
+;;
+w)
+WARN=$OPTARG
+;;
+c)
+CRIT=$OPTARG
+;;
+?)
+usage
+exit
+;;
+esac
+done
+
+state=$(mysql -h $HOST -u $USERNAME --password=$PASSWORD -P $PORT --execute="SHOW STATUS where Variable_name = 'wsrep_connected' OR Variable_name = 'wsrep_cluster_status' OR Variable_name = 'wsrep_cluster_size';")
+connected=$(echo "$state" | grep wsrep_connected | cut -f2)
+cluster_size=$(echo "$state" | grep wsrep_cluster_size | cut -f2)
+cluster_status=$(echo "$state" | grep wsrep_cluster_status | cut -f2)
+
+if [[ "$connected" == "" || "$cluster_status" == "" || "$cluster_size" == "" ]];
+then
+    echo "wsrep status not found, is this a galera cluster node?"
+    exit 3
+fi
+if [ "$connected" != "ON" ];
+then
+    echo "node is not connected to galera [wsrep_connected != ON]"
+    exit 2
+fi
+
+if [ "$cluster_status" != "Primary" ];
+then
+    echo "Cluster state is not set to primary [wsrep_cluster_status != Primary]"
+    exit 2
+fi
+
+if [[ $cluster_size -le $CRIT ]];
+then
+    echo "Cluster state is critical, number of nodes is not as excepted [node=$cluster_size,crit=$CRIT]";
+exit 2
+fi
+
+if [ $cluster_size -le $WARN ];
+then
+    echo "Cluster state is warning, number of nodes is not as excepted [node=$cluster_size,warn=$WARN]";
+    exit 1
+fi
+
+echo "Cluster state is green, $cluster_size nodes up and running"
+exit 0
