@@ -16,6 +16,7 @@ OPTIONS:
 -P port [Default: 3306] Port
 -u username [Default: root] Username to monitor (Needs privilege to execute SHOW STATUS)
 -p password [Default: <empty>] Password
+-n Don't use a password
 -w warning [Default: 1] Script will throw a warning if the number of failed or unreachable nodes is at least the number specified
 -c critical [Default: 2] Script will throw a critical if the number of failed or unreachable nodes is at least the number specified
 EOF
@@ -25,10 +26,11 @@ HOST=127.0.0.1
 PORT=3306
 USERNAME=root
 PASSWORD=
+USE_PASSWORD=true
 CRIT=1
 WARN=2
 
-while getopts "hH:P:u:p:w:c:" OPTION
+while getopts "hH:P:u:p:nw:c:" OPTION
 do
 case $OPTION in
 h)
@@ -47,6 +49,9 @@ USERNAME=$OPTARG
 p)
 PASSWORD=$OPTARG
 ;;
+n)
+USE_PASSWORD=false
+;;
 w)
 WARN=$OPTARG
 ;;
@@ -60,7 +65,13 @@ exit
 esac
 done
 
-state=$(mysql -h $HOST -u $USERNAME --password=$PASSWORD -P $PORT --execute="SHOW STATUS where Variable_name = 'wsrep_connected' OR Variable_name = 'wsrep_cluster_status' OR Variable_name = 'wsrep_cluster_size';")
+if $USE_PASSWORD; then
+    PASSWORD_ARG="--password=$PASSWORD"
+else
+    PASSWORD_ARG=""
+fi
+
+state=$(mysql -h $HOST -u $USERNAME $PASSWORD_ARG -P $PORT --execute="SHOW STATUS where Variable_name = 'wsrep_connected' OR Variable_name = 'wsrep_cluster_status' OR Variable_name = 'wsrep_cluster_size';")
 connected=$(echo "$state" | grep wsrep_connected | cut -f2)
 cluster_size=$(echo "$state" | grep wsrep_cluster_size | cut -f2)
 cluster_status=$(echo "$state" | grep wsrep_cluster_status | cut -f2)
