@@ -28,7 +28,7 @@ PASSWORD=
 CRIT=1
 WARN=2
 
-while getopts "hH:P:u:p:nw:c:" OPTION
+while getopts "hH:P:u:p:w:c:" OPTION
 do
 case $OPTION in
 h)
