@@ -10,7 +10,7 @@ This fairly simple monitoring plugin monitors the health of your galera cluster 
     -H Hostname [Default: localhost] MySQL (Fork) Server
     -P port [Default: 3306] Port
     -u username [Default: root] Username to monitor (Needs privilege to execute SHOW STATUS)
-    -p password [Default: <empty>] Password
+    -p password [Default: <none>] Password
     -w warning [Default: 1] Script will throw a warning if the number of failed or unreachable nodes is at least the number specified
     -c critical [Default: 2] Script will throw a critical if the number of failed or unreachable nodes is at least the number specified
 
